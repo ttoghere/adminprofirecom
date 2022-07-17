@@ -1,7 +1,12 @@
+import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:dotted_border/dotted_border.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:iconly/iconly.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../controllers/controllers_shelf.dart';
 import '../responsive.dart';
@@ -23,6 +28,8 @@ class _UploadProductFormState extends State<UploadProductForm> {
   late final TextEditingController _titleController, _priceController;
   int _groupValue = 1;
   bool isPiece = false;
+  File? _pickedImage;
+  Uint8List webImage = Uint8List(8);
   @override
   void initState() {
     _priceController = TextEditingController();
@@ -42,9 +49,16 @@ class _UploadProductFormState extends State<UploadProductForm> {
     final isValid = _formKey.currentState!.validate();
   }
 
+  void clearForm() {
+    isPiece = false;
+    _priceController.clear();
+    _titleController.clear();
+    _pickedImage = null;
+    webImage = Uint8List(8);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final theme = Utils(context).getTheme;
     final color = Utils(context).color;
     final _scaffoldColor = Theme.of(context).scaffoldBackgroundColor;
     Size size = Utils(context).getScreenSize;
@@ -237,7 +251,21 @@ class _UploadProductFormState extends State<UploadProductForm> {
                                           .scaffoldBackgroundColor,
                                       borderRadius: BorderRadius.circular(12.0),
                                     ),
-                                    child: dottedBorder(color: color),
+                                    child: _pickedImage == null
+                                        ? dottedBorder(color: color)
+                                        : ClipRRect(
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                            child: kIsWeb
+                                                ? Image.memory(
+                                                    webImage,
+                                                    fit: BoxFit.fill,
+                                                  )
+                                                : Image.file(
+                                                    _pickedImage!,
+                                                    fit: BoxFit.fill,
+                                                  ),
+                                          ),
                                   ),
                                 ),
                               ),
@@ -247,7 +275,9 @@ class _UploadProductFormState extends State<UploadProductForm> {
                                     child: Column(
                                       children: [
                                         TextButton(
-                                          onPressed: () {},
+                                          onPressed: () {
+                                            clearForm();
+                                          },
                                           child: TextWidget(
                                             text: 'Clear',
                                             color: Colors.red,
@@ -271,7 +301,9 @@ class _UploadProductFormState extends State<UploadProductForm> {
                               mainAxisAlignment: MainAxisAlignment.spaceAround,
                               children: [
                                 ButtonsWidget(
-                                  onPressed: () {},
+                                  onPressed: () {
+                                    clearForm();
+                                  },
                                   text: 'Clear form',
                                   icon: IconlyBold.danger,
                                   backgroundColor: Colors.red.shade300,
@@ -300,6 +332,35 @@ class _UploadProductFormState extends State<UploadProductForm> {
     );
   }
 
+  Future<void> _pickImage() async {
+    if (!kIsWeb) {
+      final ImagePicker _picker = ImagePicker();
+      XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+      if (image != null) {
+        var selected = File(image.path);
+        setState(() {
+          _pickedImage = selected;
+        });
+      } else {
+        print("There is no image");
+      }
+    } else if (kIsWeb) {
+      final ImagePicker _picker = ImagePicker();
+      XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+      if (image != null) {
+        var f = await image.readAsBytes();
+        setState(() {
+          webImage = f;
+          _pickedImage = File("a");
+        });
+      } else {
+        print("There is no image");
+      }
+    } else {
+      print("Something went wrong");
+    }
+  }
+
   Widget dottedBorder({
     required Color color,
   }) {
@@ -324,7 +385,9 @@ class _UploadProductFormState extends State<UploadProductForm> {
                   height: 20,
                 ),
                 TextButton(
-                    onPressed: (() {}),
+                    onPressed: (() {
+                      _pickImage();
+                    }),
                     child: TextWidget(
                       text: 'Choose an image',
                       color: Colors.blue,
